@@ -1,0 +1,12 @@
+,Sample Size,Unique Categories,Top Category
+Park Name,4635,203,Lake Mead National Recreation Area
+Cause of Death,4635,48,Drowning
+"Cause of Death Group 
+(Used in the NPS Mortality Dashboard) ",4635,17,Drowning
+Intent,4635,4,Unintentional
+Outcome,4635,2,Fatal Injury
+Sex,4635,3,Male
+Age Range,4623,12,65+
+Activity,4635,42,Not Reported
+date,4635,2840,2012-06-14
+latlong,4635,198,"('35.883757', '-114.6901201257536')"
