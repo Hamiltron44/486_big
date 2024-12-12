@@ -1,0 +1,83 @@
+"0",""
+"0",""
+"0","#dts <- lm(response ~ watrlvl*cvrd, data = germ_final)"
+"0","#anova(dts)"
+"0",""
+"0","#anova(lm(response ~ watrlvl, data = germ_final))"
+"0",""
+"0",""
+"0","dts <- glm(response ~ watrlvl*cvrd, data = germ_bern, family = binomial)"
+"0","anova(dts)"
+"1","Analysis of Deviance Table
+
+Model: binomial, link: logit
+
+Response: response
+
+Terms added sequentially (first to last)
+
+"
+"1","
+"
+"1","            "
+"1"," Df"
+"1"," Deviance"
+"1"," Resid. Df"
+"1"," Resid. Dev"
+"1","
+NULL        "
+"1","   "
+"1","         "
+"1","      4699"
+"1","     6506.6"
+"1","
+watrlvl     "
+"1","  5"
+"1","  1465.43"
+"1","      4694"
+"1","     5041.1"
+"1","
+cvrd        "
+"1","  1"
+"1","     0.01"
+"1","      4693"
+"1","     5041.1"
+"1","
+watrlvl:cvrd"
+"1","  5"
+"1","   262.24"
+"1","      4688"
+"1","     4778.9"
+"1","
+"
+"0","anova(glm(response ~ watrlvl, data = germ_bern))"
+"1","Analysis of Deviance Table
+
+Model: gaussian, link: identity
+
+Response: response
+
+Terms added sequentially (first to last)
+
+"
+"1","
+"
+"1","       "
+"1"," Df"
+"1"," Deviance"
+"1"," Resid. Df"
+"1"," Resid. Dev"
+"1","
+NULL   "
+"1","   "
+"1","         "
+"1","      4699"
+"1","    1172.74"
+"1","
+watrlvl"
+"1","  5"
+"1","   287.12"
+"1","      4694"
+"1","     885.62"
+"1","
+"

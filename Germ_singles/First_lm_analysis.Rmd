@@ -1,0 +1,198 @@
+---
+title: "Germination  Notebook"
+output: html_notebook
+---
+```{r setup}
+library(ggplot2)
+library(data.table)
+library(emmeans)
+
+#setwd
+source('gg_interaction_function.R')
+```
+
+
+```{r readData}
+germn<-c(22,41,66,82,79,0,
+25,46,72,73,68,0,
+27,59,51,73,74,0,
+23,38,78,84,70,0,
+45,65,81,55,31,0,
+41,80,73,51,36,0,
+42,79,74,40,45,0,
+43,77,76,62,NA,0)
+
+germ_full<-data.frame(response=germn,watrlvl=as.factor(c(rep(c(1:6),8))),cvrd=as.factor(rep(c(0,1),c(24,24))))
+
+germ_red<-germ_full[germ_full[,2]!=6,]
+
+germ_final<-germ_red[-40,]
+
+```
+
+
+```{r DotPlot_bern}
+# Initialize an empty data frame
+germ_bern <- data.frame(response = integer(0), watrlvl = factor(), cvrd = factor())
+
+# Loop through each observation in the original dataset
+for (i in 1:nrow(germ_full)) {
+  # Get the number of germinated seeds (1's) and non-germinated seeds (0's)
+  germinated <- germ_full$response[i]
+  if (is.na(germinated)) next  # Skip rows with NA response
+  
+  not_germinated <- 100 - germinated
+  
+  # Create a vector for this row with 1's and 0's
+  seed_data <- c(rep(1, germinated), rep(0, not_germinated))
+  
+  # Create a data frame with the appropriate watrlvl and cvrd factors
+  temp_df <- data.frame(
+    response = seed_data,
+    watrlvl = rep(germ_full$watrlvl[i], 100),
+    cvrd = rep(germ_full$cvrd[i], 100)
+  )
+  
+  # Bind the new data for this row to the main data frame
+  germ_bern <- rbind(germ_bern, temp_df)
+}
+
+# Print the first few rows to check
+#get rid of last factor:
+# Filter out rows where watrlvl is 6
+germ_bern <- germ_bern[germ_bern$watrlvl != 6, ]
+
+germ_bern$watrlvl <- droplevels(germ_bern$watrlvl)
+
+head(germ_bern)
+print(nrow(germ_bern))
+
+```
+
+
+```{r DotPlot}
+ggplot(germ_final, aes(x = response, fill = watrlvl)) + geom_dotplot(binaxis = 'x', stackdir = 'up')
+
+```
+
+```{r BarPlot_bern}
+ggplot(germ_bern, aes(x = watrlvl, fill = factor(response))) +
+  geom_bar(position = "fill") +
+  labs(y = "Proportion", fill = "Germination (1 = Yes, 0 = No)") +
+  theme_minimal()
+
+
+#bar plot split on cvrd (0 is non covered)
+ggplot(germ_bern, aes(x = watrlvl, fill = factor(response))) +
+  geom_bar(position = "fill") +
+  facet_wrap(~ cvrd) +
+  labs(y = "Proportion", fill = "Germination (1 = Yes, 0 = No)") +
+  theme_minimal()
+
+```
+
+
+```{r ANOVA}
+# Fit a logistic regression model with germination as the outcome
+dts_bern <- glm(response ~ watrlvl + cvrd, data = germ_bern, family = binomial)
+
+# Perform ANOVA on the logistic regression model
+anova(dts_bern, test = "Chisq")
+
+
+dts <- lm(response ~ ., data = germ_final)
+anova(dts)
+
+```
+
+```{r}
+
+
+#dts <- lm(response ~ watrlvl*cvrd, data = germ_final)
+#anova(dts)
+
+#anova(lm(response ~ watrlvl, data = germ_final))
+
+
+dts <- glm(response ~ watrlvl*cvrd, data = germ_bern, family = binomial)
+anova(dts)
+
+anova(glm(response ~ watrlvl, data = germ_bern))
+
+```
+
+
+```{r Interaction_Plot_bern}
+library(dplyr)
+library(ggplot2)
+library(pROC)
+library(caret)
+
+# Fit the linear regression model (lm)
+lm_model <- lm(response ~ watrlvl + cvrd, data = germ_bern)
+
+# Fit the logistic regression model (glm)
+logistic_model <- glm(response ~ watrlvl + cvrd, data = germ_bern, family = binomial)
+
+# Predictions for both models
+lm_pred <- predict(lm_model, type = "response")  # Linear regression predictions
+logistic_pred <- predict(logistic_model, type = "response")  # Logistic regression predictions
+
+# 1. Accuracy
+# For linear regression: We'll consider predictions > 0.5 as 1, else 0.
+lm_pred_class <- ifelse(lm_pred > 0.5, 1, 0)
+logistic_pred_class <- ifelse(logistic_pred > 0.5, 1, 0)
+
+lm_accuracy <- mean(lm_pred_class == germ_bern$response)
+logistic_accuracy <- mean(logistic_pred_class == germ_bern$response)
+
+# 2. AUC (Area Under the ROC Curve) - only valid for logistic regression
+roc_logistic <- roc(germ_bern$response, logistic_pred)
+logistic_auc <- auc(roc_logistic)
+
+# 3. R^2 for Linear Regression
+lm_r_squared <- summary(lm_model)$r.squared
+
+# R^2 for Logistic Regression - McFadden's R^2
+logistic_r_squared <- 1 - (logistic_model$deviance / logistic_model$null.deviance)
+
+# Output the results
+cat("Linear Regression Accuracy:", lm_accuracy, "\n")
+cat("Logistic Regression Accuracy:", logistic_accuracy, "\n")
+cat("Logistic Regression AUC:", logistic_auc, "\n")
+cat("Linear Regression R^2:", lm_r_squared, "\n")
+cat("Logistic Regression R^2 (McFadden):", logistic_r_squared, "\n")
+
+```
+
+
+
+
+
+```{r Interaction_Plot1}
+library(ggplot2)
+
+# Fit the logistic regression model (glm)
+logistic_model <- glm(response ~ watrlvl * cvrd, data = germ_bern, family = binomial)
+
+# Generate predictions from the model
+germ_bern$pred <- predict(logistic_model, type = "response")
+
+# Create interaction plot
+ggplot(germ_bern, aes(x = watrlvl, y = pred, color = cvrd, group = cvrd)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Interaction Plot: Germination Probability vs Water Level and Coverage",
+    x = "Water Level",
+    y = "Predicted Probability of Germination",
+    color = "Coverage"
+  ) +
+  theme_minimal()
+
+```
+
+```{r Interaction_Plot2}
+gg_interaction(x = c("watrlvl", "cvrd"), y = "response", random = NULL, data = germ_bern)
+
+```

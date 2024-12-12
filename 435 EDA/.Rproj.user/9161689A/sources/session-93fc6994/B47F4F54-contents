@@ -1,0 +1,336 @@
+---
+title: "STAT 435 Project 1"
+author: "Spencer Hamilton"
+date: today
+date-format: long
+output:
+  pdf_document:
+    toc: true
+    keep_tex: true
+    keep_md: true
+    fig_caption: true
+    number_sections: true
+  html_document:
+    toc: false
+    df_print: paged
+bibliography: projectreferences_new.bib
+nocite: "@R-dplyr @R-knitr @R-gridExtra \n"
+link-citations: yes
+
+abstract: This study investigates whether suicides in U.S. national parks occur more frequently in winter than summer, a hypothesis inspired by assumptions about seasonal depression. Using the National Parks Service dataset (2014–2023), we tested this belief with multiple statistical methods, including the paired t-test and Wilcoxon signed-rank test. Contrary to expectations, our results showed no significant seasonal differences, challenging the notion of increased suicides during winter. These findings highlight the complexity of suicide patterns and suggest the need for further examination of other contributing factors.
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+set.seed(1234)
+library(tidyverse)
+library(knitr)
+library(dplyr)
+library(gridExtra)
+library(lubridate)
+library(ggplot2)
+library(tidyr)
+```
+
+```{r, echo = FALSE}
+knitr::write_bib(c('knitr', 'stringr', 'dplyr', 'gridExtra'),file = 'pack.bib')
+
+shell("type projectreferences.bib pack.bib > projectreferences_new.bib ")
+```
+
+\newpage
+
+# Introduction
+
+Contrary to the common belief that suicides peak in winter, research suggests they are most frequent in spring. This study examines whether such trends hold within national parks. Using the National Parks Service mortality Dataset (2014–2023), we compared suicide rates in the first and second halves of each year. Paired t-tests, Wilcoxon signed-rank tests, and exploratory data analysis were conducted to evaluate seasonal differences.
+
+We hypothesized that suicide rates in the first half of the year exceed those in the second. Our null and alternative hypotheses were:
+
+Null: $H_0: \mu_{first6month} = \mu_{second6months}$
+
+Alternative: $H_a: \mu_{first6months} > \mu_{second6months}$
+
+```{r generating data, echo = FALSE, include= FALSE}
+data <- read.csv("../Mortality_a.csv", colClasses = c("Incident.Date" = "character"))
+
+#print(head(data))
+data$Incident.Date <- mdy(data$Incident.Date)
+
+data <- data |>
+  mutate(Year = year(Incident.Date))
+
+data_summary <- data |>
+  filter(Cause.of.Death == "Suicide") |>
+  filter(Year != 2024) |>
+  mutate(Year = year(Incident.Date),  # Extract the year
+         Season = case_when(
+           month(Incident.Date) %in% 1:6 ~ "First Half (Jan - Jun)",  # Months 1-6
+           month(Incident.Date) %in% 7:12 ~ "Second Half (Jul - Dec)",  # Months 7-12
+           TRUE ~ NA_character_
+         )) |>
+  filter(!is.na(Season)) |>  # Remove any rows without a season
+  group_by(Year, Season) |>  # Group by Year and Season
+  summarise(Incident_Count = n(), .groups = "drop")  # Count incidents
+
+
+
+data_wide <- data_summary |>
+  pivot_wider(names_from = Season, values_from = Incident_Count, values_fill = 0)
+
+
+data_wide <- data_wide |>
+  rename(month1_6 = `First Half (Jan - Jun)`,
+         month7_12 = `Second Half (Jul - Dec)`)
+
+data_wide <- data_wide %>%
+  mutate(Difference = month7_12 - month1_6)
+
+val <- mean(data_wide$Difference)
+
+```
+
+
+# Data
+
+The dataset includes suicide incidents from 2014–2023, providing ten paired observations. Splitting each year into two halves facilitated a comparison of seasonal differences. Initial exploratory analysis revealed a mean difference of `r val` suicides (first half minus second half), suggesting no obvious springtime peak. Data normality was confirmed using the Shapiro-Wilk test (p = 0.97).
+
+```{r Year Density Plot, echo = FALSE, fig.cap = 'Density Plot of Suicide by Year', out.width = '50%', fig.align = 'center'}
+
+
+## Add a full caption about where we are at, and help people do an analysis without having to read this whole paper
+
+#add the heatmap of US deaths
+
+#add the datacolumn of how many visitors in a year for the population
+
+#Go through citrix to create a word document from my pdf, to edit and make changes
+data <- data |>
+  mutate(DayOfYear = yday(Incident.Date))
+
+data_filtered <- data |>
+  filter(Cause.of.Death == "Suicide") |>
+  filter(Year %% 2 == 0 & Year != 2024)
+
+# Plot density of incidents compressed into a single year's time, with month labels
+ggplot(data_filtered, aes(x = DayOfYear, color = as.factor(Year), fill = as.factor(Year))) +
+  geom_density(alpha = 0.3) +
+  scale_x_continuous(breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335),  # Approx. days for each month start
+                     labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) +
+  labs(title = "Death Density Across the Year (2014 and Onward)", 
+       x = "Month", 
+       y = "Density") +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  scale_fill_brewer(palette = "Set3") +  # Optional: choose a color palette for better distinction
+  scale_color_brewer(palette = "Set3")   # Optional: matching color palette
+
+```
+
+In this density plot we can see that it is difficult to see any real patterns in the data. There is a decently consistent number of deaths between months, and there are no real outliar months for deaths. This is only a portion of all the years in our data set, and we hope that with our statistical tests, we can prove that winter is no more dangerous for suicides than summer.
+
+
+However, this was necessary to create a paired scenario, where we could compare spring to the rest of the year. In order to do this, the year had to be split evenly. Since each year gives us two related measurements (one for the first half and one for the second half), paired tests makes sense. Each year is its own observation, and ignoring the unique setting of the year felt negligent. Thus, tests we used focused on the difference between the two, or paired tests.
+
+The bar graph 1 shows each half year compared with its pair. It can be seen in this proportion bar graph that 
+
+```{r summary table, echo = FALSE, fig.cap = 'Summary table of Suicide in each year', out.width = '50%', fig.align = 'center'}
+# Create a histogram for data_wiki
+imbalance <- abs(data_wide[data_wide$Year == 2020, "Difference"])
+ggplot(data_summary, aes(x = Year, y = Incident_Count, fill = Season)) +
+  geom_bar(stat = "identity", position = "identity", alpha = 0.5) +  # Stacked bars
+  labs(title = "Suicides by Season (First Half vs. Second Half of Year)",
+       x = "Year",
+       y = "Incident Count") +
+  theme_minimal() +
+  scale_fill_manual(values = c("First Half (Jan - Jun)" = "blue", 
+                                "Second Half (Jul - Dec)" = "red")) +
+  theme(legend.title = element_blank())
+
+```
+
+From this bar graph we can see that generally, that each year has a similar number of suicides from the first and second half. The outliar being 2020, where there is a more significant imbalance of `r imbalance`. 
+
+```{r,  echo = FALSE, warning = FALSE, include= FALSE}
+
+# Run the Shapiro-Wilk test on the differences
+shapiro_test <- shapiro.test(data_wide$Difference)
+
+# Print the results
+shapiro_test
+```
+
+Next we went through checking the normalcy of the data, to see if the two halves of the years' differences were normally distributed. Using the Shapiro-Wilk normality test, we obtained a p-value of `r shapiro_test$p.value`
+
+```{r,  echo = FALSE, warning = FALSE, include= FALSE}
+
+# Perform the paired t-test on the two groups
+paired_t_test <- t.test(data_wide$month1_6, data_wide$month7_12, paired = TRUE)
+
+# Print the results
+paired_t_test
+```
+
+# Testing
+
+
+With this in order, we used a paired t-test to test the null hypothesis stated above. This paired t-test, "provides an hypothesis test of the difference between population means for a pair of random samples whose differences are approximately normally distributed. " [@R-tform] . This test assumes a normality of differences, which we have shown above. It assumes paired observations, which we claim these observations are paired. We also must assume that Data in both groups is continuous and independent of other pairs, these are true, as there can be any number of suicides, regardless of how morbid. In addition, we assume the observations are independent, and we claim each year is its own observation. This test also assumes random sampling from a population, but we are using the entire population, or the entire population, for which we have data.  [@R-tform]
+The equations used to calculate such are found below:
+
+$$ t = \frac{\bar d}{\sqrt{(\frac{s^2}{n})}}  $$ $$ s^2 = \frac{\sum_{i=1}^n (x_d-\bar{x}_d)^2}{n - 1} $$
+
+
+```{r,  echo = FALSE, warning = FALSE, include= FALSE}
+
+# Perform the Wilcoxon signed-rank test (for paired data)
+wilcox_signed_rank_result <- wilcox.test(
+  x = data_wide$month1_6,  # First half of the year
+  y = data_wide$month7_12, # Second half of the year
+  paired = TRUE,            # Paired because it's within the same year
+  alternative = "two.sided"  # Testing for any difference
+)
+
+# Display the result
+wilcox_signed_rank_result
+
+
+#permutation test
+# Set the number of permutations
+num_permutations <- 10000
+
+# Observed statistic (median of differences in the original data)
+observed_statistic <- median(data_wide$month7_12 - data_wide$month1_6)
+
+# Initialize a vector to store the permuted statistics
+permuted_statistics <- numeric(num_permutations)
+
+# Run the permutation test
+for (i in 1:num_permutations) {
+  
+  # Create a copy of the original data
+  permuted_data <- data_wide
+  
+  # Randomly swap values between month1_6 and month7_12 for each row with 50% probability
+  swap <- rbinom(nrow(permuted_data), 1, 0.5) == 1
+  
+  # Perform the swap where necessary
+  permuted_data[swap, c("month1_6", "month7_12")] <- permuted_data[swap, c("month7_12", "month1_6")]
+  
+  # Calculate the permuted statistic (median of differences)
+  permuted_statistics[i] <- median(permuted_data$month7_12 - permuted_data$month1_6)
+}
+
+# Calculate the p-value as the proportion of permuted statistics that are as extreme or more extreme than the observed one
+p_value <- mean(abs(permuted_statistics) >= abs(observed_statistic))
+
+# Output the result
+cat("Observed Statistic:", observed_statistic, "\n")
+cat("P-value from Permutation Test:", p_value, "\n")
+
+```
+
+After running this parametric test, we next used the Wilcox signed rank test. This test has some similar assumptions. First, we assume that the data is paired. The differences need not be normally distributed, but they must be symmetrically distributed around the median, this is true for our data because it is normally distributed. We also assume the data is ordinal. Lastly, we assume each pair is independent of the other pairs, which is true because each year is seen as a separate observation. [@R-Wilcox]
+Below is the equation that calculates this test.
+
+
+
+$$ T = \sum_{i=1}^N sgn(X_i)*R_i $$
+
+
+This test gave similar results with a p value of `r wilcox_signed_rank_result$p.value`
+
+Lastly, we ran a permutation test to check how likely these results are. Running 10000 permutations, we found that this test gave an observed statistic and p-value. This test assumes exchange-ability of data, independence of observations, a fixed Null Hypothesis, and sufficient permutations to approximate the full distribution.
+
+# Results
+
+The paired t-test gives a test statistic of `r paired_t_test$statistic`, and a p value of `r paired_t_test$p.value`. With this p value, we fail to reject the null hypothesis.
+
+The same happened with the Wilcox Signed Rank Test. It gave a test statistic of `r wilcox_signed_rank_result$statistic`, and a p value of `r wilcox_signed_rank_result$p.value`.
+
+The permutation test repeated that our observed Statistic was: `r observed_statistic` and our p-value of this statistic was `r p_value`
+
+All tests concluded that there was not a statistically significant difference in the first and second half of each year, with respect to frequency of suicides in national parks.
+
+# Summary of Conclusions
+
+Although the data proved to be relatively normally distributed, not all of the assumptions were met for the paired t-test. Thus it was important to also examine the Wilcox Signed Rank Test in this context. This was able to help confirm the results gotten from the paired t-test.
+
+Due to the output of all p-values, the conclusion of this analysis was that we must fail to reject the null hypothesis in all tests, and conclude that there is no difference in the average frequency of suicides in national parks or distribution of both groups. Ultimately, we can make no conclusion as to whether there are more frequent suicides in either half of the year. This is interesting, but cannot be extrapolated into any greater populations, as all data was collected within national parks. Perhaps these results could be extended to predict future years of deaths, but cannot be extended to the US population on the whole.
+
+# Future Recommendations
+
+After completing this analysis, it is recognized that there is the possibility of confounding in this study. A recommendation on further analysis would be to specifically study each season. Perhaps splitting the year into four groups instead of two would allow the spring to be studied more exactly. Another recommendation would be to research preventative measures and intervention opportunities within the national parks. Have they changed in this time period, or stayed constant?
+
+Another interesting consideration would be checking other similar populations, like state run parks. This would help with understanding how unique national park data really is. This could lead to more interesting analysis.
+
+This analysis inspired us to more fully understand the US mental health crisis, and self-harm in general. This issue is a plague to our modern society, and through awareness and intervention, we can make a meaningful difference.
+\newpage
+# The End
+\newpage
+
+# References
+
+::: {#refs}
+:::
+
+\newpage
+
+# Appendix
+
+```{r, Appendix with lots of things, eval = FALSE, }
+#signed test:
+
+# Remove NA values and zero differences
+valid_differences <- differences[differences != 0]
+
+# Count positive differences
+num_positive <- sum(valid_differences > 0)
+
+# Total valid pairs
+n <- length(valid_differences)
+
+# Check that we have valid pairs
+if (n > 0 && num_positive <= n) {
+  # Run the sign test
+  sign_test_result <- binom.test(x = num_positive, n = n, p = 0.5)
+
+  # Display the result
+  print(sign_test_result)
+} else {
+  cat("No valid pairs for the sign test.\n")
+}
+
+
+
+
+table(data_wide)
+
+
+
+
+#Appendix
+# Specify the category of interest
+category_of_interest <- "Suicide"
+
+# Create a new logical column
+data$compar_Suic <- ifelse(data$Cause.of.Death == category_of_interest, "Suicide", "Other")
+# Create a table to compare counts
+comparison_counts <- table(data$compar_Suic)
+# Create the combined histogram
+ggplot(data, aes(x = Year, fill = compar_Suic)) +
+  geom_bar(position = "stack") +  # Use "dodge" for side-by-side bars
+  theme_minimal() +
+  labs(title = "Counts of Causes of Death by Year",
+       x = "Year",
+       y = "Count",
+       fill = "Cause of Death") +
+  scale_fill_manual(values = c("Suicide" = "blue", "Other" = "orange"))
+
+
+
+
+
+```
+
+```{r ref.label = knitr::all_labels(), echo = TRUE, eval = FALSE}
+
+```

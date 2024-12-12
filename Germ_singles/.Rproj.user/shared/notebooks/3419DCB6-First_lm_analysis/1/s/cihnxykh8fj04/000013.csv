@@ -1,0 +1,4 @@
+"0","ggplot(germ_bern, aes(x = watrlvl, fill = factor(response))) +"
+"0","  geom_bar(position = ""fill"") +"
+"0","  labs(y = ""Proportion"", fill = ""Germination (1 = Yes, 0 = No)"") +"
+"0","  theme_minimal()"

@@ -1,0 +1,3 @@
+"0","data_suic <- data_summary %>%"
+"0","  filter(Cause.of.Death == ""Suicide"")"
+"0","print(data_suic)"

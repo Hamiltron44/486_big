@@ -1,0 +1,308 @@
+---
+title: "EDA_big_dataset"
+format: html
+editor: visual
+---
+
+## This is data about deaths in a national park, so first lets get the dataset and learn more about it:
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+
+#get the data
+data <- read.csv("../national_parks_with_coordinates.csv", colClasses = c("Incident.Date" = "character"))
+
+
+
+#data <- read.csv("../national_parks_with_coordinates.csv")
+```
+
+```{r}
+# Convert the Date column from mm/dd/yyyy format to a proper Date type
+data$Incident.Date <- mdy(data$Incident.Date)
+
+# Check for any conversion issues
+summary(data$Incident.Date)
+```
+
+Let's see some info
+
+```{r}
+# View the structure of the dataset
+#str(data)
+
+# Get a summary of the dataset
+summary(data)
+
+```
+
+How did most people die?
+
+```{r}
+#For the Appendix
+table(data$Cause.of.Death)
+```
+
+```{r}
+
+#Appendix
+# Specify the category of interest
+category_of_interest <- "Suicide"
+
+# Create a new logical column
+data$compar_Suic <- ifelse(data$Cause.of.Death == category_of_interest, "Suicide", "Other")
+
+# Create a table to compare counts
+comparison_counts <- table(data$compar_Suic)
+
+# Print the comparison table
+print(comparison_counts)
+
+```
+
+```{r}
+#Appendix
+
+# Create the comparison column
+data$compar_Suic <- ifelse(data$Cause.of.Death == "Suicide", "Suicide", "Other")
+
+# Convert compar_Suic to a factor with specified levels
+data$compar_Suic <- factor(data$compar_Suic, levels = c("Suicide", "Other"))
+
+data$Year <- substr(data$date, 1, 4)
+
+# Create the combined histogram
+ggplot(data, aes(x = Year, fill = compar_Suic)) +
+  geom_bar(position = "stack") +  # Use "dodge" for side-by-side bars
+  theme_minimal() +
+  labs(title = "Counts of Causes of Death by Year",
+       x = "Year",
+       y = "Count",
+       fill = "Cause of Death") +
+  scale_fill_manual(values = c("Suicide" = "blue", "Other" = "orange"))
+
+```
+
+```{r}
+#Appendix
+# Convert your Date column to Date type if it's not already
+#data$Incident.Date <- as.Date(data$Incident.Date)
+
+# Extract the year from the Date column
+# Now proceed with your previous steps to extract year and summarize incidents
+data <- data |>
+  mutate(Year = year(Incident.Date))
+
+data_summary <- data |>
+  group_by(Year, Intent) |>
+  summarize(Incident_Count = n())
+```
+
+```{r}
+#Appendix
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+
+# Convert your Date column to Date type if it's not already
+data$Incident.Date <- as.Date(data$Incident.Date)
+
+# Create a "day of the year" column (1 to 365/366)
+data <- data %>%
+  mutate(DayOfYear = yday(Incident.Date))
+```
+
+```{r}
+
+#graph for paper
+
+
+# Filter every 4th year starting from 2014 (2014, 2018, 2022, etc.)
+data_filtered <- data |>
+  filter(Cause.of.Death == "Suicide") |>
+  filter(Year %% 2 == 0 & Year != 2024)
+
+# Plot density of incidents compressed into a single year's time, with month labels
+ggplot(data_filtered, aes(x = DayOfYear, color = as.factor(Year), fill = as.factor(Year))) +
+  geom_density(alpha = 0.3) +
+  scale_x_continuous(breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335),  # Approx. days for each month start
+                     labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) +
+  labs(title = "Overlay of Death Density Across the Year (2014 and Onward, Every 4th Year)", 
+       x = "Month", 
+       y = "Density") +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  scale_fill_brewer(palette = "Set3") +  # Optional: choose a color palette for better distinction
+  scale_color_brewer(palette = "Set3")   # Optional: matching color palette
+
+
+```
+
+```{r}
+#The graph is fun, but only shows every other year, it would be much nicer to see the table
+
+# Create the data_wiki dataframe with seasonal separation based on months 1-6 and 7-12
+data_summary <- data |>
+  filter(Cause.of.Death == "Suicide") |>
+  #filter(Sex == "Male") |>
+  mutate(Year = year(Incident.Date),  # Extract the year
+         Season = case_when(
+           month(Incident.Date) %in% 1:6 ~ "First Half (Jan - Jun)",  # Months 1-6
+           month(Incident.Date) %in% 7:12 ~ "Second Half (Jul - Dec)",  # Months 7-12
+           TRUE ~ NA_character_
+         )) %>%
+  filter(!is.na(Season)) |>  # Remove any rows without a season
+  group_by(Year, Season) |>  # Group by Year and Season
+  summarise(Incident_Count = n(), .groups = "drop")  # Count incidents
+
+
+# Step 2: Check for Normality in Incident Counts
+normality_test <- shapiro.test(data_summary$Incident_Count)
+print(normality_test)
+
+# Step 3: Perform Statistical Tests
+if (normality_test$p.value > 0.05) {
+  # Run an unpaired t-test if normal
+  t_test_result <- t.test(Incident_Count ~ Season, data = data_summary)
+  print(t_test_result)
+} else {
+  cat("Data is not normally distributed; consider using the Mann-Whitney U test.\n")
+}
+
+# Run a Mann-Whitney U test (Wilcoxon test) to compare the medians
+mann_whitney_result <- wilcox.test(Incident_Count ~ Season, data = data_summary)
+print(mann_whitney_result)
+
+
+
+```
+
+```{r}
+#graph it!
+library(ggplot2)
+
+# Create a histogram for data_wiki
+ggplot(data_summary, aes(x = Year, y = Incident_Count, fill = Season)) +
+  geom_bar(stat = "identity", position = "identity", alpha = 0.5) +  # Stacked bars
+  labs(title = "Incident Counts by Season (First Half vs. Second Half of Year)",
+       x = "Year",
+       y = "Incident Count") +
+  theme_minimal() +
+  scale_fill_manual(values = c("First Half (Jan - Jun)" = "blue", 
+                                "Second Half (Jul - Dec)" = "red")) +
+  theme(legend.title = element_blank())
+
+```
+
+```{r}
+#sign test:
+# Reshape data_summary to have counts for both seasons in separate columns
+library(dplyr)
+library(tidyr)
+
+data_wide <- data_summary %>%
+  pivot_wider(names_from = Season, values_from = Incident_Count, values_fill = 0)
+
+# Create a vector of differences between summer and winter counts
+differences <- data_wide$`First Half (Jan - Jun)` - data_wide$`Second Half (Jul - Dec)`
+
+# Remove NA values and zero differences
+valid_differences <- differences[differences != 0]
+
+# Count positive differences
+num_positive <- sum(valid_differences > 0)
+
+# Total valid pairs
+n <- length(valid_differences)
+
+# Check that we have valid pairs
+if (n > 0 && num_positive <= n) {
+  # Run the sign test
+  sign_test_result <- binom.test(x = num_positive, n = n, p = 0.5)
+
+  # Display the result
+  print(sign_test_result)
+} else {
+  cat("No valid pairs for the sign test.\n")
+}
+
+```
+
+```{r}
+
+data_wide <- data_wide |>
+  rename(month1_6 = `First Half (Jan - Jun)`,
+         month7_12 = `Second Half (Jul - Dec)`)
+
+
+```
+
+```{r}
+#check normalacy
+# Calculate the differences between the two periods
+data_wide <- data_wide %>%
+  mutate(Difference = month7_12 - month1_6)
+
+# Run the Shapiro-Wilk test on the differences
+shapiro_test <- shapiro.test(data_wide$Difference)
+
+# Print the results
+shapiro_test
+
+```
+
+```{r}
+#t-test
+# Perform the paired t-test on the two groups
+paired_t_test <- t.test(data_wide$month1_6, data_wide$month7_12, paired = TRUE)
+
+# Print the results
+paired_t_test
+
+```
+
+```{r}
+#permutation test
+# Set the number of permutations
+num_permutations <- 10000
+
+# Observed statistic (median of differences in the original data)
+observed_statistic <- median(data_wide$month7_12 - data_wide$month1_6)
+
+# Initialize a vector to store the permuted statistics
+permuted_statistics <- numeric(num_permutations)
+
+# Run the permutation test
+for (i in 1:num_permutations) {
+  
+  # Create a copy of the original data
+  permuted_data <- data_wide
+  
+  # Randomly swap values between month1_6 and month7_12 for each row with 50% probability
+  swap <- rbinom(nrow(permuted_data), 1, 0.5) == 1
+  
+  # Perform the swap where necessary
+  permuted_data[swap, c("month1_6", "month7_12")] <- permuted_data[swap, c("month7_12", "month1_6")]
+  
+  # Calculate the permuted statistic (median of differences)
+  permuted_statistics[i] <- median(permuted_data$month7_12 - permuted_data$month1_6)
+}
+
+# Calculate the p-value as the proportion of permuted statistics that are as extreme or more extreme than the observed one
+p_value <- mean(abs(permuted_statistics) >= abs(observed_statistic))
+
+# Output the result
+cat("Observed Statistic:", observed_statistic, "\n")
+cat("P-value from Permutation Test:", p_value, "\n")
+
+
+```
+
+```{r}
+sum(data_wide$month1_6)
+sum(data_wide$month7_12)
+```

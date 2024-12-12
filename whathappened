@@ -1,0 +1,7 @@
+,Incident Date,Park Name,Cause of Death,"Cause of Death Group 
+(Used in the NPS Mortality Dashboard) ",Intent,Outcome,Sex,Age Range,Activity,temperature,precipitation,humidity,date,latlong,latitude,longitude,Weather
+4774,6/28/2024,Valley Forge National Historical Park,Motor Vehicle Crash,Motor Vehicle Crash,Unintentional,Fatal Injury,Not Reported,65+,Driving,,,,2024-06-28,"('40.1006378', '-75.44443767012535')",40.1006378,-75.44443767012535,False
+4775,6/28/2024,Delaware Water Gap National Recreation Area,Motor Vehicle Crash,Motor Vehicle Crash,Unintentional,Fatal Injury,Male,65+,Driving,,,,2024-06-28,"('41.1384391', '-74.91102148570056')",41.1384391,-74.91102148570056,False
+4776,6/29/2024,Point Reyes National Seashore,Suicide,Suicide,Intentional,Fatal Injury,Not Reported,65+,Suicide,,,,2024-06-29,"('38.07053155', '-122.91761219342156')",38.07053155,-122.91761219342156,False
+4777,6/29/2024,Grand Canyon National Park,Undetermined,Undetermined,Undetermined,Fatal Injury,Male,45-54,Hiking,,,,2024-06-29,"('36.307854750000004', '-112.29289603702432')",36.30785475,-112.29289603702432,False
+4778,6/29/2024,Delaware Water Gap National Recreation Area,Undetermined,Undetermined,Undetermined,Fatal Injury,Male,15-24,Swimming,,,,2024-06-29,"('41.1384391', '-74.91102148570056')",41.1384391,-74.91102148570056,False

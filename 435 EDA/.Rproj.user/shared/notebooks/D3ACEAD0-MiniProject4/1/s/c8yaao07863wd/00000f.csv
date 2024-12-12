@@ -1,0 +1,7 @@
+"0","#| eval: true"
+"0","generator <- function(possible_values, pmf, n){"
+"0","  # observe data from population"
+"0","  sample_with_pmf <- sample(possible_values, size = n, replace = TRUE, prob = pmf)"
+"0","  # compute the mean of the observed data"
+"0","  return(mean(sample_with_pmf))"
+"0","}"

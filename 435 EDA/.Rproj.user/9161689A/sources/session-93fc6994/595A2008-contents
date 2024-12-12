@@ -1,0 +1,76 @@
+---
+title: "Germination  Notebook"
+output: html_notebook
+---
+```{r setup}
+library(ggplot2)
+library(data.table)
+library(emmeans)
+
+#setwd
+source('gg_interaction_function.R')
+```
+
+
+```{r readData}
+germn<-c(22,41,66,82,79,0,
+25,46,72,73,68,0,
+27,59,51,73,74,0,
+23,38,78,84,70,0,
+45,65,81,55,31,0,
+41,80,73,51,36,0,
+42,79,74,40,45,0,
+43,77,76,62,NA,0)
+
+germ_full<-data.frame(response=germn,watrlvl=as.factor(c(rep(c(1:6),8))),cvrd=as.factor(rep(c(0,1),c(24,24))))
+
+germ_red<-germ_full[germ_full[,2]!=6,]
+
+germ_final<-germ_red[-40,]
+
+```
+
+```{r DotPlot}
+ggplot(germ_final, aes(x = response, fill = watrlvl)) + geom_dotplot(binaxis = 'x', stackdir = 'up')
+
+```
+
+
+```{r Descriptive_Graphs}
+#full data
+ggplot(data = germ_full, aes(x = watrlvl, y = response, color = cvrd)) + geom_boxplot()
+
+#Without water level 6
+ggplot(data = germ_final, aes(x = watrlvl, y = response, color = cvrd)) + geom_boxplot()
+
+#look at main effects
+ggplot(data = germ_final, aes(x = watrlvl, y = response)) + geom_boxplot()
+
+```
+```{r ANOVA}
+dts <- lm(response ~ ., data = germ_final)
+anova(dts)
+
+```
+
+```{r}
+dts <- lm(response ~ watrlvl*cvrd, data = germ_final)
+anova(dts)
+
+anova(lm(response ~ watrlvl, data = germ_final))
+
+```
+
+```{r Interaction_Plot1}
+#set up data for interaction plot
+pred.dts <- predict(dts)
+germ_final_pred <- cbind(germ_final, pred.dts)
+germ_interaction <- germ_final_pred[c(1:5, 21:25),]
+
+gg_interaction(x = c("cvrd", "watrlvl"), y = "response", random = NULL, data = germ_interaction)
+```
+
+```{r Interaction_Plot2}
+gg_interaction(x = c("watrlvl", "cvrd"), y = "response", random = NULL, data = germ_interaction)
+
+```

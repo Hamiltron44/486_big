@@ -1,0 +1,8 @@
+"0","#| eval: true"
+"0","possible_values <- 1:10"
+"0","pmf <- c(1, 0, 0, 0, 0, 0, 0, 0, 0, 0)"
+"0",""
+"0","# plot of data distribution"
+"0","plot(possible_values, pmf, type = ""h"", lty = 2, "
+"0","     xlab = ""y"", ylab = ""p(y) = P(Y = y)"", main = ""Data Distribution"","
+"0","     ylim = c(0, 1))"
